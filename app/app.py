@@ -103,7 +103,7 @@ def prediction_page(model, data):
         import plotly.graph_objects as go
         
         fig = go.Figure(data=[go.Pie(
-            labels=['Benign', 'Malignant'],
+            labels=['Non-cancerous', 'Cancerous'],
             values=prediction_proba[0],
             hole=.3,
             marker_colors=['lightgreen', 'lightcoral']
