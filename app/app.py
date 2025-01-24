@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Load the dataset and model
-DATA_PATH = "E:/Streamlit-App-Cancer/data/data.csv"
-MODEL_PATH = "E:/Streamlit-App-Cancer/model/breast_cancer_model.pkl"
+DATA_PATH = "data.csv"
+MODEL_PATH = "breast_cancer_model.pkl"
 
 @st.cache_resource
 def load_model():
@@ -18,7 +18,7 @@ def load_dataset():
     return pd.read_csv(DATA_PATH)
 
 def main():
-    st.image('E:/Streamlit-App-Cancer/images/img.jpeg', use_column_width=True)
+    st.image('img.jpeg', use_column_width=True)
     st.title('Breast Cancer Diagnosis Predictor')
     
     # Sidebar navigation
