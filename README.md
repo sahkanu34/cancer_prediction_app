@@ -20,7 +20,7 @@ This is a Machine Learning web application that predicts the likelihood of breas
 
 # App Screenshots
 <img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/screenshot1.png" >
-<img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/screenshot2.png" >
+<img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/image.png" >
 <img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/screenshot3.png" >
 <img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/screesnhot4.png" >
 <img src= "https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/screesnhot5.png" >
