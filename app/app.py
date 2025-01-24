@@ -97,13 +97,24 @@ def prediction_page(model, data):
             st.success('✅ Benign Tumor Detected')
             st.write(f'Benignancy Probability: {prediction_proba[0][0]:.2%}')
         
-        # Probability bar chart
-        plt.figure(figsize=(8, 5))
-        plt.bar(['Benign', 'Malignant'], prediction_proba[0])
-        plt.title('Tumor Classification Probabilities')
-        plt.ylabel('Probability')
-        plt.ylim(0, 1)
-        st.pyplot(plt)
+    
+
+        # Interactive pie chart using plotly
+        import plotly.graph_objects as go
+        
+        fig = go.Figure(data=[go.Pie(
+            labels=['Benign', 'Malignant'],
+            values=prediction_proba[0],
+            hole=.3,
+            marker_colors=['lightgreen', 'lightcoral']
+        )])
+        
+        fig.update_layout(
+            title="Cancer  Probability",
+            annotations=[dict(text=f'{max(prediction_proba[0]):.1%}', x=0.5, y=0.5, font_size=20, showarrow=False)]
+        )
+        
+        st.plotly_chart(fig)
 
 def model_info_page(model):
     st.header('Model Diagnostic Overview')
@@ -118,7 +129,7 @@ def model_info_page(model):
     # Performance metrics
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Accuracy", "96%")
+        st.metric("Accuracy", "97%")
     with col2:
         st.metric("Precision", "94%")
 
