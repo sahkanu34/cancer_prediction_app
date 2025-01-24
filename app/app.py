@@ -18,7 +18,7 @@ def load_dataset():
     return pd.read_csv(DATA_PATH)
 
 def main():
-    st.image('img.jpeg', use_column_width=True)
+    st.image("https://github.com/sahkanu34/cancer_prediction_app/blob/main/app/img.jpeg?raw=true", use_column_width=True)
     st.title('Breast Cancer Diagnosis Predictor')
     
     # Sidebar navigation
