@@ -3,6 +3,8 @@
 <img src ="https://github.com/sahkanu34/cancer_prediction_app/blob/main/images/img.jpeg" >
 
 ---
+# The Project has been already deployed
+[Open Live Project](https://cancerpredictionapp-34.streamlit.app/)
 
 ## Project Overview
 This is a Machine Learning web application that predicts the likelihood of breast cancer based on various medical attributes using Logistic Regression. The application leverages supervised learning techniques to provide accurate predictions and actionable insights.
