@@ -7,6 +7,10 @@ import seaborn as sns
 import os
 from sklearn.feature_selection import f_classif, SelectKBest
 from sklearn.preprocessing import LabelEncoder
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+from scipy.stats import gaussian_kde
+from sklearn.feature_selection import SelectKBest, f_classif
 
 # Absolute path resolution
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -103,14 +107,14 @@ def prediction_page(model, data):
         import plotly.graph_objects as go
         
         fig = go.Figure(data=[go.Pie(
-            labels=['Non-cancerous', 'Cancerous'],
+            labels=['Benign', 'Malignant'],
             values=prediction_proba[0],
             hole=.3,
             marker_colors=['lightgreen', 'lightcoral']
         )])
         
         fig.update_layout(
-            title="Cancer  Probability",
+            title="Diagnosis Distribution",
             annotations=[dict(text=f'{max(prediction_proba[0]):.1%}', x=0.5, y=0.5, font_size=20, showarrow=False)]
         )
         
@@ -179,62 +183,162 @@ def dataset_overview(data):
 def diagnosis_distribution(data):
     st.subheader('Tumor Diagnosis Distribution')
     
+    # Calculate diagnosis counts
     diagnosis_counts = data['diagnosis'].value_counts()
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     
-    ax1.pie(diagnosis_counts, labels=['Benign', 'Malignant'], autopct='%1.1f%%', 
-            colors=['lightgreen', 'lightcoral'])
-    ax1.set_title('Diagnosis Proportion')
+    # Create subplot figure
+    fig = make_subplots(rows=1, cols=2,
+                        specs=[[{"type": "pie"}, {"type": "bar"}]],
+                        subplot_titles=('Diagnosis Proportion', 'Diagnosis Counts'))
     
-    diagnosis_counts.plot(kind='bar', ax=ax2, color=['lightgreen', 'lightcoral'])
-    ax2.set_title('Diagnosis Counts')
-    ax2.set_xlabel('Diagnosis')
-    ax2.set_ylabel('Number of Cases')
+    # Add pie chart
+    fig.add_trace(
+        go.Pie(labels=['Benign', 'Malignant'],
+               values=diagnosis_counts.values,
+               textinfo='percent',
+               hovertemplate="<b>%{label}</b><br>" +
+                           "Count: %{value}<br>" +
+                           "Percentage: %{percent}<extra></extra>",
+               marker_colors=['lightgreen', 'lightcoral']),
+        row=1, col=1
+    )
     
-    st.pyplot(fig)
+    # Add bar chart
+    fig.add_trace(
+        go.Bar(x=['Benign', 'Malignant'],
+               y=diagnosis_counts.values,
+               text=diagnosis_counts.values,
+               textposition='auto',
+               marker_color=['lightgreen', 'lightcoral'],
+               hovertemplate="<b>%{x}</b><br>" +
+                           "Count: %{y}<extra></extra>"),
+        row=1, col=2
+    )
+    
+    # Update layout
+    fig.update_layout(
+        showlegend=False,
+        height=500,
+        width=1000,
+        title_text="Tumor Diagnosis Distribution",
+        yaxis_title="Number of Cases",
+    )
+    
+    # Display the plot in Streamlit
+    st.plotly_chart(fig)
 
 def feature_distributions(data):
     st.subheader('Feature Distributions')
     
+    # Remove non-feature columns
     features_to_plot = data.drop(['id', 'diagnosis', 'Unnamed: 32'], axis=1).columns.tolist()
+    
+    # Create selectbox for feature selection
     selected_feature = st.selectbox(
         'Choose Feature to Visualize', 
         features_to_plot,
         key='feature_distribution_select'
     )
     
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    # Create subplot figure
+    fig = make_subplots(rows=1, cols=2,
+                        subplot_titles=(f'Histogram of {selected_feature}',
+                                      f'Density Plot of {selected_feature}'))
     
-    data[selected_feature].hist(ax=ax1, bins=30)
-    ax1.set_title(f'Histogram of {selected_feature}')
-    ax1.set_xlabel('Value')
-    ax1.set_ylabel('Frequency')
+    # Calculate histogram data
+    hist_values, bin_edges = np.histogram(data[selected_feature], bins=30)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
     
-    data[selected_feature].plot(kind='density', ax=ax2)
-    ax2.set_title(f'Density Plot of {selected_feature}')
-    ax2.set_xlabel('Value')
-    ax2.set_ylabel('Density')
+    # Calculate KDE for density plot
+    kde = gaussian_kde(data[selected_feature])
+    x_range = np.linspace(data[selected_feature].min(), data[selected_feature].max(), 200)
+    density_values = kde(x_range)
     
-    st.pyplot(fig)
+    # Add histogram
+    fig.add_trace(
+        go.Histogram(
+            x=data[selected_feature],
+            nbinsx=30,
+            name='Histogram',
+            hovertemplate="Value: %{x}<br>Count: %{y}<extra></extra>"
+        ),
+        row=1, col=1
+    )
+    
+    # Add density plot
+    fig.add_trace(
+        go.Scatter(
+            x=x_range,
+            y=density_values,
+            name='Density',
+            fill='tozeroy',
+            hovertemplate="Value: %{x}<br>Density: %{y:.4f}<extra></extra>"
+        ),
+        row=1, col=2
+    )
+    
+    # Update layout
+    fig.update_layout(
+        height=500,
+        width=1000,
+        showlegend=False,
+        title_text=f"Distribution of {selected_feature}",
+    )
+    
+    # Update axes labels
+    fig.update_xaxes(title_text="Value", row=1, col=1)
+    fig.update_xaxes(title_text="Value", row=1, col=2)
+    fig.update_yaxes(title_text="Frequency", row=1, col=1)
+    fig.update_yaxes(title_text="Density", row=1, col=2)
+    
+    # Display the plot in Streamlit
+    st.plotly_chart(fig)
 
 def correlation_heatmap(data):
     st.subheader('Feature Correlation Heatmap')
     
+    # Calculate correlation matrix
     correlation_matrix = data.drop(['id', 'diagnosis', 'Unnamed: 32'], axis=1).corr()
     
-    plt.figure(figsize=(16, 12))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, 
-                square=True, linewidths=0.5, cbar_kws={"shrink": .8})
-    plt.title('Correlation Matrix of Diagnostic Features')
-    st.pyplot(plt)
+    # Create heatmap
+    fig = go.Figure(data=go.Heatmap(
+        z=correlation_matrix,
+        x=correlation_matrix.columns,
+        y=correlation_matrix.columns,
+        zmin=-1,
+        zmax=1,
+        colorscale='RdBu',
+        text=np.round(correlation_matrix, 2),
+        texttemplate='%{text}',
+        textfont={"size": 10},
+        hoverongaps=False,
+        hovertemplate='%{x}<br>%{y}<br>Correlation: %{z:.2f}<extra></extra>'
+    ))
+    
+    # Update layout
+    fig.update_layout(
+        title='Correlation Matrix of Diagnostic Features',
+        width=1000,
+        height=800,
+        xaxis={'side': 'bottom'},
+        yaxis={'autorange': 'reversed'}
+    )
+    
+    # Make the heatmap square
+    fig.update_layout(yaxis=dict(scaleanchor="x", scaleratio=1))
+    
+    # Display the plot
+    st.plotly_chart(fig)
 
 def feature_importance(data):
     st.subheader('Feature Importance Analysis')
     
+    # Prepare data
     X = data.drop(['id', 'diagnosis', 'Unnamed: 32'], axis=1)
     le = LabelEncoder()
     y = le.fit_transform(data['diagnosis'])
     
+    # Calculate feature importance
     selector = SelectKBest(score_func=f_classif, k=5)
     selector.fit(X, y)
     
@@ -243,12 +347,33 @@ def feature_importance(data):
         'score': selector.scores_
     }).sort_values('score', ascending=False)
     
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='score', y='feature', data=feature_scores.head(5), 
-                palette='viridis')
-    plt.title('Top 5 Most Important Features')
-    plt.xlabel('F-Score')
-    st.pyplot(plt)
+    # Create bar plot
+    fig = go.Figure(data=[
+        go.Bar(
+            x=feature_scores.head(5)['score'],
+            y=feature_scores.head(5)['feature'],
+            orientation='h',
+            marker=dict(
+                color=feature_scores.head(5)['score'],
+                colorscale='Viridis'
+            ),
+            hovertemplate='<b>%{y}</b><br>' +
+                         'F-Score: %{x:.2f}<extra></extra>'
+        )
+    ])
+    
+    # Update layout
+    fig.update_layout(
+        title='Top 5 Most Important Features',
+        xaxis_title='F-Score',
+        yaxis_title='Feature',
+        width=800,
+        height=500,
+        yaxis={'autorange': 'reversed'}  # To match the original order
+    )
+    
+    # Display the plot
+    st.plotly_chart(fig)
 
 def box_plots(data):
     st.subheader('Feature Distribution by Diagnosis')
