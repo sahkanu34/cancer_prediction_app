@@ -42,7 +42,7 @@ def main():
     st.title('Breast Cancer Diagnosis Predictor')
     
     # Sidebar navigation
-    app_mode = st.sidebar.selectbox(
+    app_mode = st.sidebar.radio(
         'Choose Module', 
         ['Prediction', 'Model Details', 'Data Insights'],
         key='main_navigation'
