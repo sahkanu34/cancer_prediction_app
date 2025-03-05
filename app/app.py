@@ -133,7 +133,7 @@ def model_info_page(model):
     # Performance metrics
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Accuracy", "97%")
+        st.metric("Accuracy", "99%")
     with col2:
         st.metric("Precision", "94%")
 
