@@ -19,9 +19,8 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('', DOCKERHUB_CREDENTIALS) {
+                    docker.withRegistry('https://index.docker.io/v1/', env.DOCKERHUB_CREDENTIALS) {
                         docker.image("${DOCKER_IMAGE}:${env.BUILD_ID}").push()
-                        // Also push as latest
                         docker.image("${DOCKER_IMAGE}:${env.BUILD_ID}").push('latest')
                     }
                 }
@@ -31,11 +30,8 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Apply Kubernetes manifests
                     sh "kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}"
                     sh "kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}"
-                    
-                    // Check rollout status
                     sh "kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE}"
                 }
             }
@@ -43,11 +39,11 @@ pipeline {
     }
     
     post {
+        failure {
+            echo 'Pipeline failed! Check Docker Hub credentials and Kubernetes configuration.'
+        }
         success {
             echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed!'
         }
     }
 }
