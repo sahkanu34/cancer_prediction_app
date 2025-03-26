@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cancer-prediction-service
+  namespace: cancer-prediction
+spec:
+  selector:
+    app: cancer-prediction
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000  # must match your containerPort
+  type: LoadBalancer

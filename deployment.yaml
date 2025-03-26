@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cancer-prediction
+  namespace: cancer-prediction
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cancer-prediction
+  template:
+    metadata:
+      labels:
+        app: cancer-prediction
+    spec:
+      containers:
+      - name: cancer-prediction
+        image: sahkanu37/cancer_prediction:latest
+        ports:
+        - containerPort: 5000  # or whatever port your app uses
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
