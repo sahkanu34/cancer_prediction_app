@@ -7,11 +7,11 @@ spec:
   replicas: 3
   selector:
     matchLabels:
-      app: cancer-prediction
+      app: cancer-prediction-app
   template:
     metadata:
       labels:
-        app: cancer-prediction
+        app: cancer-prediction-app
     spec:
       containers:
       - name: cancer_prediction
