@@ -8,6 +8,12 @@ pipeline {
     }
     
     stages {
+        stage('Checkout SCM') {
+            steps {
+                checkout scm
+            }
+        }
+        
         stage('Build Docker Image') {
             steps {
                 script {
@@ -32,18 +38,31 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh "kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}"
-                    sh "kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE}"
+                    // Update deployment image
+                    sh """
+                        sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${env.BUILD_ID}|g' k8s/deployment.yaml
+                        kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
+                        kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
+                        kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE}
+                    """
                 }
             }
         }
     }
     
     post {
+        always {
+            // Clean up Docker images
+            sh """
+                docker rmi ${DOCKER_IMAGE}:${env.BUILD_ID} || true
+                docker rmi ${DOCKER_IMAGE}:latest || true
+            """
+        }
+        
         failure {
             echo 'Pipeline failed! Check Docker Hub credentials and Kubernetes configuration.'
         }
+        
         success {
             echo 'Pipeline completed successfully!'
         }
