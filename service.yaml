@@ -9,5 +9,5 @@ spec:
   ports:
     - protocol: TCP
       port: 8501
-      targetPort: 8501  # must match your containerPort
+      targetPort: 8501  
   type: LoadBalancer

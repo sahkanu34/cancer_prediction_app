@@ -17,7 +17,7 @@ spec:
       - name: cancer_prediction
         image: sahkanu37/cancer_prediction:latest
         ports:
-        - containerPort: 8501 # or whatever port your app uses
+        - containerPort: 8501 
         resources:
           limits:
             memory: "512Mi"
