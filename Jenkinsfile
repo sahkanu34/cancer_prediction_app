@@ -1,169 +1,138 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        // Docker configuration
         DOCKER_IMAGE = 'sahkanu37/cancer_prediction'
+        DOCKER_TAG = "${env.BUILD_ID}"
+
+        // Kubernetes configuration
         K8S_NAMESPACE = 'cancer-prediction'
-        DEPLOYMENT_PATH = 'E:/Streamlit-App-Cancer/deployment.yaml'
-        SERVICE_PATH = 'E:/Streamlit-App-Cancer/service.yaml'
+        MINIKUBE_PROFILE = 'minikube'  // Change if using a custom profile
+        DEPLOYMENT_FILE = 'deployment.yaml'
+        SERVICE_FILE = 'service.yaml'
     }
-    
+
     stages {
-        stage('Validate Environment') {
-            steps {
-                script {
-                    if (!fileExists(env.DEPLOYMENT_PATH)) {
-                        error "Deployment file not found at ${env.DEPLOYMENT_PATH}"
-                    }
-                    if (!fileExists(env.SERVICE_PATH)) {
-                        error "Service file not found at ${env.SERVICE_PATH}"
-                    }
-                }
-            }
-        }
-        
-        stage('Checkout SCM') {
+        stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    try {
-                        if (isUnix()) {
-                            sh "docker version"
-                            sh "docker build -t ${DOCKER_IMAGE}:${env.BUILD_ID} ."
-                        } else {
-                            bat "docker version"
-                            bat "docker build -t ${DOCKER_IMAGE}:${env.BUILD_ID} ."
-                        }
-                    } catch (Exception e) {
-                        error "Docker build failed: ${e.message}"
+                    if (isUnix()) {
+                        sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                    } else {
+                        bat "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                     }
                 }
             }
         }
-        
-        stage('Push to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    script {
-                        try {
-                            if (isUnix()) {
-                                sh """
-                                    echo "${DOCKER_PASS}" | docker login -u ${DOCKER_USER} --password-stdin
-                                    docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
-                                    docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
-                                    docker push ${DOCKER_IMAGE}:latest
-                                """
-                            } else {
-                                bat """
-                                    echo logging in to Docker Hub
-                                    docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-                                    docker push ${DOCKER_IMAGE}:${env.BUILD_ID}
-                                    docker tag ${DOCKER_IMAGE}:${env.BUILD_ID} ${DOCKER_IMAGE}:latest
-                                    docker push ${DOCKER_IMAGE}:latest
-                                """
-                            }
-                        } catch (Exception e) {
-                            error "Docker push failed: ${e.message}"
-                        }
-                    }
-                }
-            }
-        }
-        
-        stage('Deploy to Kubernetes') {
-            when {
-                expression { 
-                    currentBuild.resultIsBetterOrEqualTo('SUCCESS') 
-                }
-            }
+
+        stage('Load into Minikube') {
             steps {
                 script {
-                    try {
-                        if (isUnix()) {
-                            sh "kubectl config current-context"
-                            sh "kubectl get namespace ${K8S_NAMESPACE} || kubectl create namespace ${K8S_NAMESPACE}"
-                            
-                            sh """
-                                sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${env.BUILD_ID}|g' "${env.DEPLOYMENT_PATH}"
-                                kubectl apply -f "${env.DEPLOYMENT_PATH}" -n ${K8S_NAMESPACE}
-                                kubectl apply -f "${env.SERVICE_PATH}" -n ${K8S_NAMESPACE}
-                                kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
-                            """
-                        } else {
-                            bat """
-                                kubectl config current-context
-                                kubectl get namespace ${K8S_NAMESPACE} || kubectl create namespace ${K8S_NAMESPACE}
-                                
-                                powershell -Command "(Get-Content '${env.DEPLOYMENT_PATH}') -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${env.BUILD_ID}' | Set-Content '${env.DEPLOYMENT_PATH}'"
-                                kubectl apply -f "${env.DEPLOYMENT_PATH}" -n ${K8S_NAMESPACE}
-                                kubectl apply -f "${env.SERVICE_PATH}" -n ${K8S_NAMESPACE}
-                                kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
-                            """
-                        }
-                    } catch (Exception e) {
-                       
-                        error "Kubernetes deployment failed: ${e.message}"
+                    // Minikube must use its own Docker daemon
+                    if (isUnix()) {
+                        sh 'eval $(minikube docker-env)'
+                        sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
+                    } else {
+                        bat 'minikube docker-env | Invoke-Expression'
+                        bat "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Minikube') {
+            steps {
+                script {
+                    // Create namespace if not exists
+                    if (isUnix()) {
+                        sh """
+                            minikube kubectl -- get ns ${K8S_NAMESPACE} || \
+                            minikube kubectl -- create ns ${K8S_NAMESPACE}
+                        """
+                    } else {
+                        bat """
+                            minikube kubectl -- get ns ${K8S_NAMESPACE} || ^
+                            minikube kubectl -- create ns ${K8S_NAMESPACE}
+                        """
+                    }
+
+                    // Update image in deployment
+                    if (isUnix()) {
+                        sh """
+                            sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${DOCKER_TAG}|g' ${DEPLOYMENT_FILE}
+                        """
+                    } else {
+                        bat """
+                            powershell -Command "(Get-Content ${DEPLOYMENT_FILE}) -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${DOCKER_TAG}' | Set-Content ${DEPLOYMENT_FILE}"
+                        """
+                    }
+
+                    // Apply Kubernetes manifests
+                    if (isUnix()) {
+                        sh """
+                            minikube kubectl -- -n ${K8S_NAMESPACE} apply -f ${DEPLOYMENT_FILE}
+                            minikube kubectl -- -n ${K8S_NAMESPACE} apply -f ${SERVICE_FILE}
+                        """
+                    } else {
+                        bat """
+                            minikube kubectl -- -n ${K8S_NAMESPACE} apply -f ${DEPLOYMENT_FILE}
+                            minikube kubectl -- -n ${K8S_NAMESPACE} apply -f ${SERVICE_FILE}
+                        """
+                    }
+
+                    // Verify deployment
+                    if (isUnix()) {
+                        sh """
+                            minikube kubectl -- -n ${K8S_NAMESPACE} rollout status deployment/cancer-prediction-app
+                        """
+                    } else {
+                        bat """
+                            minikube kubectl -- -n ${K8S_NAMESPACE} rollout status deployment/cancer-prediction-app
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Get Application URL') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh """
+                            echo "Application deployed to:"
+                            minikube service -n ${K8S_NAMESPACE} cancer-prediction-service --url
+                        """
+                    } else {
+                        bat """
+                            echo "Application deployed to:"
+                            minikube service -n ${K8S_NAMESPACE} cancer-prediction-service --url
+                        """
                     }
                 }
             }
         }
     }
-    
+
     post {
         always {
             script {
-                try {
-                    if (isUnix()) {
-                        sh """
-                            docker rmi ${DOCKER_IMAGE}:${env.BUILD_ID} || true
-                            docker rmi ${DOCKER_IMAGE}:latest || true
-                            docker logout
-                        """
-                    } else {
-                        bat """
-                            docker rmi ${DOCKER_IMAGE}:${env.BUILD_ID} || echo "Build image not found"
-                            docker rmi ${DOCKER_IMAGE}:latest || echo "Latest image not found"
-                            docker logout
-                        """
-                    }
-                } catch (Exception e) {
-                    echo "Cleanup encountered an error: ${e.message}"
+                // Clean up Docker images
+                if (isUnix()) {
+                    sh """
+                        docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                    """
+                } else {
+                    bat """
+                        docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || echo "Image not found"
+                    """
                 }
-            }
-        }
-        
-        failure {
-            // Enhanced failure notification
-            script {
-                def failureMessage = """
-                    Pipeline Failed! 
-                    Job: ${env.JOB_NAME}
-                    Build Number: ${env.BUILD_NUMBER}
-                    Build URL: ${env.BUILD_URL}
-                    
-                    Possible issues:
-                    - Docker build/push failed
-                    - Kubernetes deployment configuration incorrect
-                    - Credentials or authentication problems
-                """
-                
-                echo failureMessage
-            }
-        }
-        
-        success {
-            script {
-                echo "Pipeline completed successfully!"
             }
         }
     }
