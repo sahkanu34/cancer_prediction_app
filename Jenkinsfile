@@ -62,16 +62,16 @@ pipeline {
                 script {
                     if (isUnix()) {
                         sh """
-                            sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${env.BUILD_ID}|g' k8s/deployment.yaml
-                            kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
-                            kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
+                            sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${env.BUILD_ID}|g' E:/Streamlit-App-Cancer/deployment.yaml
+                            kubectl apply -f E:/Streamlit-App-Cancer/deployment.yaml -n ${K8S_NAMESPACE}
+                            kubectl apply -f E:/Streamlit-App-Cancer/service.yaml -n ${K8S_NAMESPACE}
                             kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
                         """
                     } else {
                         bat """
-                            powershell -Command "(Get-Content k8s/deployment.yaml) -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${env.BUILD_ID}' | Set-Content k8s/deployment.yaml
-                            kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
-                            kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
+                            powershell -Command "(Get-Content 'E:/Streamlit-App-Cancer/deployment.yaml') -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${env.BUILD_ID}' | Set-Content 'E:/Streamlit-App-Cancer/deployment.yaml'
+                            kubectl apply -f E:/Streamlit-App-Cancer/deployment.yaml -n ${K8S_NAMESPACE}
+                            kubectl apply -f E:/Streamlit-App-Cancer/service.yaml -n ${K8S_NAMESPACE}
                             kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
                         """
                     }
