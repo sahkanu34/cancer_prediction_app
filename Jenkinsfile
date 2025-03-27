@@ -60,29 +60,18 @@ pipeline {
             }
             steps {
                 script {
-                    // Verify kubectl is available
                     if (isUnix()) {
                         sh """
-                            Update deployment image
                             sed -i 's|image: .*|image: ${DOCKER_IMAGE}:${env.BUILD_ID}|g' k8s/deployment.yaml
-                            
-                            Apply Kubernetes manifests
                             kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                             kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
-                            
-                            Verify deployment
                             kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
                         """
                     } else {
                         bat """
-                            Update deployment image (Windows version)
-                            powershell -Command "(Get-Content k8s/deployment.yaml) -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${env.BUILD_ID}' | Set-Content k8s/deployment.yaml"
-                            
-                            Apply Kubernetes manifests
+                            powershell -Command "(Get-Content k8s/deployment.yaml) -replace 'image: .*', 'image: ${DOCKER_IMAGE}:${env.BUILD_ID}' | Set-Content k8s/deployment.yaml
                             kubectl apply -f k8s/deployment.yaml -n ${K8S_NAMESPACE}
                             kubectl apply -f k8s/service.yaml -n ${K8S_NAMESPACE}
-                            
-                            Verify deployment
                             kubectl rollout status deployment/cancer-prediction -n ${K8S_NAMESPACE} --timeout=300s
                         """
                     }
