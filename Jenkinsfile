@@ -8,7 +8,7 @@ pipeline {
 
         // Kubernetes configuration
         K8S_NAMESPACE = 'cancer-prediction'
-        MINIKUBE_PROFILE = 'minikube'  // Change if using a custom profile
+        MINIKUBE_PROFILE = 'minikube'  
         DEPLOYMENT_FILE = 'deployment.yaml'
         SERVICE_FILE = 'service.yaml'
     }
@@ -31,21 +31,23 @@ pipeline {
                 }
             }
         }
-
-        stage('Load into Minikube') {
-            steps {
-                script {
-                    // Minikube must use its own Docker daemon
-                    if (isUnix()) {
-                        sh 'eval $(minikube docker-env)'
-                        sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
-                    } else {
-                        bat 'minikube docker-env | Invoke-Expression'
-                        bat "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
-                    }
-                }
+stage('Load into Minikube') {
+    steps {
+        script {
+            // Minikube must use its own Docker daemon
+            if (isUnix()) {
+                sh 'eval $(minikube docker-env)'
+                sh "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
+            } else {
+                // For Windows, use PowerShell explicitly
+                powershell '@FOR /f "tokens=*" %i IN (\'minikube docker-env --shell=cmd\') DO @%i'
+                // Alternative pure PowerShell approach:
+                // powershell '& minikube docker-env | Invoke-Expression'
+                bat "docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest"
             }
         }
+    }
+}
 
         stage('Deploy to Minikube') {
             steps {
